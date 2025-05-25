@@ -1,0 +1,89 @@
+name: Monitoring System
+
+on:
+  schedule:
+    - cron: '0 */12 * * *'
+  workflow_dispatch:
+    inputs:
+      monitor_type:
+        description: 'Select monitor(s) to run'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - jsmon
+          - submon
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      run_jsmon: ${{ github.event_name == 'schedule' || github.event.inputs.monitor_type == 'both' || github.event.inputs.monitor_type == 'jsmon' }}
+      run_submon: ${{ github.event_name == 'schedule' || github.event.inputs.monitor_type == 'both' || github.event.inputs.monitor_type == 'submon' }}
+    steps:
+      - run: echo "Setting up job conditions"
+
+  jsmon:
+    needs: setup
+    if: needs.setup.outputs.run_jsmon == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r jsmon/requirements.txt
+
+      - name: Run JSMon
+        env:
+          JSMON_DISCORD_WEBHOOK: ${{ secrets.JSMON_DISCORD_WEBHOOK }}
+        run: |
+          cd jsmon
+          python3 jsmon.py
+
+  submon:
+    needs: setup
+    if: needs.setup.outputs.run_submon == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip3 install -r submon/requirements.txt
+
+          curl -LO https://github.com/findomain/findomain/releases/latest/download/findomain-linux.zip
+          unzip findomain-linux.zip
+          chmod +x findomain
+          sudo mv findomain /usr/bin/findomain
+
+          go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+          sudo mv ~/go/bin/subfinder /usr/bin/
+
+          go install -v github.com/tomnomnom/assetfinder@latest
+          sudo mv ~/go/bin/assetfinder /usr/bin/
+
+      - name: Run SubMon
+        env:
+          SUBMON_DISCORD_WEBHOOK: ${{ secrets.SUBMON_DISCORD_WEBHOOK }}
+        run: |
+          cd submon
+          python3 submon.py
