@@ -1,13 +1,2 @@
-title: Radar Documentation
-remote_theme: just-the-docs/just-the-docs
-color_scheme: dark
-
-search_enabled: true
-
-nav:
-  - title: Home
-    url: /
-  - title: Installation
-    url: /installation
-  - title: Usage
-    url: /usage
+title: Radar
+theme: jekyll-theme-hacker
